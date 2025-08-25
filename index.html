@@ -3667,7 +3667,7 @@
             </div>
         </div>
 
-        <!-- Modal flotante para bus inspeccionado recientemente -->
+        <!-- Modal flotante para bus inspeccionado -->
         <div id="bus-already-checked" class="fixed inset-0 flex items-center justify-center bg-black/50 z-50 hidden">
             <div class="relative bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md p-6 max-w-md w-full">
                 <button id="close-bus-checked" class="absolute top-2 right-2 text-blue-700 dark:text-blue-300">
@@ -3675,7 +3675,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300">Bus ya inspeccionado recientemente</h3>
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300">Bus ya inspeccionado</h3>
                 <p class="mt-2 text-sm text-blue-700 dark:text-blue-200">Este bus ya fue inspeccionado el <span id="last-inspection-date" class="font-semibold">DD/MM/AAAA</span>.</p>
                 <div class="mt-4 flex space-x-4 justify-end">
                     <button type="button" id="use-previous-data" class="btn btn-sm btn-light">
@@ -4542,8 +4542,8 @@
                             DOM.historialBusBtn.disabled = false;
                         }
 
-                        // Verificar si el bus ya tiene una inspección reciente
-                        checkBusRecentInspection(foundBus.ppu);
+                        // Verificar si el bus ya tiene una inspección previa
+                        checkBusExistingInspection(foundBus.ppu);
 
                     } else {
                         DOM.busValidationMsg.textContent = 'Bus no encontrado en este terminal.';
@@ -4559,22 +4559,17 @@
             }
 
             /**
-             * Verifica si un bus tiene inspección reciente
+             * Verifica si un bus ya tiene una inspección registrada
              * @param {string} busPPU - PPU del bus
              */
-            async function checkBusRecentInspection(busPPU) {
+            async function checkBusExistingInspection(busPPU) {
                 if (!busPPU || !supabaseClient || !DOM.busAlreadyChecked || !DOM.lastInspectionDate) return;
 
                 try {
-                    // Obtener la fecha de 30 días atrás
-                    const thirtyDaysAgo = new Date();
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
                     const { data, error } = await supabaseClient
                         .from('CatastroExtintor_inspecciones')
                         .select('*')
                         .eq('bus_ppu', busPPU)
-                        .gte('fecha_inspeccion', thirtyDaysAgo.toISOString())
                         .order('fecha_inspeccion', { ascending: false })
                         .limit(1);
 
@@ -4588,11 +4583,11 @@
                         // Guardar datos de la última inspección para posible reutilización
                         DOM.busAlreadyChecked.dataset.lastInspection = JSON.stringify(data[0]);
                     } else {
-                        // No hay inspección reciente
+                        // No hay inspección previa
                         DOM.busAlreadyChecked.classList.add('hidden');
                     }
                 } catch (error) {
-                    console.error(`Error al verificar inspección reciente: ${error.message}`);
+                    console.error(`Error al verificar inspección previa: ${error.message}`);
                     DOM.busAlreadyChecked.classList.add('hidden');
                 }
             }
