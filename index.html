@@ -2497,6 +2497,40 @@
                                                 class="mt-1 text-xs text-red-600 dark:text-red-400 h-4"></div>
                                         </div>
 
+                                        <!-- Alerta de bus ya revisado -->
+                                        <div id="bus-already-checked"
+                                            class="hidden w-full max-w-full rounded-md bg-blue-50 dark:bg-blue-900/30 p-4 border border-blue-200 dark:border-blue-800 mt-4">
+                                            <div class="flex items-start">
+                                                <div class="flex-shrink-0">
+                                                    <svg class="h-5 w-5 text-blue-600 dark:text-blue-400"
+                                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                                        fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd"
+                                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                            clip-rule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                                <div class="ml-3 flex-1">
+                                                    <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300">Bus
+                                                        ya inspeccionado recientemente</h3>
+                                                    <div class="mt-2 text-sm text-blue-700 dark:text-blue-200">
+                                                        <p>Este bus ya fue inspeccionado el <span
+                                                                id="last-inspection-date"
+                                                                class="font-semibold">DD/MM/AAAA</span>.</p>
+                                                    </div>
+                                                    <div class="mt-3 flex space-x-4">
+                                                        <button type="button" id="use-previous-data"
+                                                            class="btn btn-sm btn-light">
+                                                            Usar datos anteriores
+                                                        </button>
+                                                        <button type="button" id="create-new-inspection"
+                                                            class="btn btn-sm btn-primary">
+                                                            Crear nueva inspección
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </fieldset>
                                 </div>
 
@@ -3667,27 +3701,6 @@
             </div>
         </div>
 
-        <!-- Modal flotante para bus inspeccionado -->
-        <div id="bus-already-checked" class="fixed inset-0 flex items-center justify-center bg-black/50 z-50 hidden">
-            <div class="relative bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md p-6 max-w-md w-full">
-                <button id="close-bus-checked" class="absolute top-2 right-2 text-blue-700 dark:text-blue-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300">Bus ya inspeccionado</h3>
-                <p class="mt-2 text-sm text-blue-700 dark:text-blue-200">Este bus ya fue inspeccionado el <span id="last-inspection-date" class="font-semibold">DD/MM/AAAA</span>.</p>
-                <div class="mt-4 flex space-x-4 justify-end">
-                    <button type="button" id="use-previous-data" class="btn btn-sm btn-light">
-                        Usar datos anteriores
-                    </button>
-                    <button type="button" id="create-new-inspection" class="btn btn-sm btn-primary">
-                        Crear nueva inspección
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Contenedor de notificaciones flotantes -->
         <div id="notification-container" class="fixed bottom-5 right-5 z-50 space-y-3"></div>
 
@@ -3772,7 +3785,6 @@
                 lastInspectionDate: null,
                 usePreviousDataBtn: null,
                 createNewInspectionBtn: null,
-                closeBusCheckedBtn: null,
                 historialBusBtn: null,
                 extintorEstadoRadios: null,
                 extintorDetailsContainer: null,
@@ -4542,8 +4554,8 @@
                             DOM.historialBusBtn.disabled = false;
                         }
 
-                        // Verificar si el bus ya tiene una inspección previa
-                        checkBusExistingInspection(foundBus.ppu);
+                        // Verificar si el bus ya tiene una inspección reciente
+                        checkBusRecentInspection(foundBus.ppu);
 
                     } else {
                         DOM.busValidationMsg.textContent = 'Bus no encontrado en este terminal.';
@@ -4559,17 +4571,22 @@
             }
 
             /**
-             * Verifica si un bus ya tiene una inspección registrada
+             * Verifica si un bus tiene inspección reciente
              * @param {string} busPPU - PPU del bus
              */
-            async function checkBusExistingInspection(busPPU) {
+            async function checkBusRecentInspection(busPPU) {
                 if (!busPPU || !supabaseClient || !DOM.busAlreadyChecked || !DOM.lastInspectionDate) return;
 
                 try {
+                    // Obtener la fecha de 30 días atrás
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
                     const { data, error } = await supabaseClient
                         .from('CatastroExtintor_inspecciones')
                         .select('*')
                         .eq('bus_ppu', busPPU)
+                        .gte('fecha_inspeccion', thirtyDaysAgo.toISOString())
                         .order('fecha_inspeccion', { ascending: false })
                         .limit(1);
 
@@ -4583,11 +4600,11 @@
                         // Guardar datos de la última inspección para posible reutilización
                         DOM.busAlreadyChecked.dataset.lastInspection = JSON.stringify(data[0]);
                     } else {
-                        // No hay inspección previa
+                        // No hay inspección reciente
                         DOM.busAlreadyChecked.classList.add('hidden');
                     }
                 } catch (error) {
-                    console.error(`Error al verificar inspección previa: ${error.message}`);
+                    console.error(`Error al verificar inspección reciente: ${error.message}`);
                     DOM.busAlreadyChecked.classList.add('hidden');
                 }
             }
@@ -8226,7 +8243,6 @@
                 DOM.lastInspectionDate = document.getElementById('last-inspection-date');
                 DOM.usePreviousDataBtn = document.getElementById('use-previous-data');
                 DOM.createNewInspectionBtn = document.getElementById('create-new-inspection');
-                DOM.closeBusCheckedBtn = document.getElementById('close-bus-checked');
                 DOM.historialBusBtn = document.getElementById('historial-bus-btn');
                 DOM.extintorEstadoRadios = document.querySelectorAll('input[name="extintor_estado"]');
                 DOM.extintorDetailsContainer = document.getElementById('extintor-details-container');
@@ -8511,14 +8527,6 @@
 
                 if (DOM.usePreviousDataBtn) {
                     DOM.usePreviousDataBtn.addEventListener('click', fillFormWithPreviousData);
-                }
-
-                if (DOM.closeBusCheckedBtn) {
-                    DOM.closeBusCheckedBtn.addEventListener('click', () => {
-                        if (DOM.busAlreadyChecked) {
-                            DOM.busAlreadyChecked.classList.add('hidden');
-                        }
-                    });
                 }
 
                 // Estado extintor (tiene/no tiene)
